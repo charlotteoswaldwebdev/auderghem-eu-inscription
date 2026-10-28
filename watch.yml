@@ -1,0 +1,36 @@
+name: Auderghem slot watcher
+
+on:
+  schedule:
+    # Every 15 min, 05:00–20:45 UTC (06:00–21:45 Brussels in winter). GitHub may delay runs a few minutes.
+    - cron: '*/15 5-20 * * *'
+  workflow_dispatch: {}
+
+concurrency: slot-watcher
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Restore state (already-notified slots)
+        uses: actions/cache/restore@v4
+        with:
+          path: .slot-state.json
+          key: slot-state-${{ github.run_id }}
+          restore-keys: slot-state-
+      - name: Check slots
+        run: node check-slots.mjs
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          BEFORE: '2026-11-24'
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .slot-state.json
+          key: slot-state-${{ github.run_id }}
